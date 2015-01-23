@@ -1,0 +1,11 @@
+*~
+*.pyc
+*.sublime-*
+*.log
+*.tar.gz
+build/
+*.egg-info
+.coverage
+htmlcov
+/.tox
+/dist
