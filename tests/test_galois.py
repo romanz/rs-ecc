@@ -1,4 +1,4 @@
-import galois as g
+from ecc import galois as g
 
 GF = g.Field(reversed([1, 0, 0, 0, 1, 1, 1, 0, 1]), p=2)
 

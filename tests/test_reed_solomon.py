@@ -1,5 +1,5 @@
-import galois as g
-import reed_solomon as rs
+from ecc import galois as g
+from ecc import reed_solomon as rs
 import pytest
 
 GF = g.Field(reversed([1, 0, 0, 0, 1, 1, 1, 0, 1]), p=2)
@@ -22,7 +22,7 @@ def test_encode():
     assert f == [224, 75, 253, 239, 175, 107, 19, 144, 42, 188] + msg
 
 
-def test_syndrome():
+def test_decode():
     d = 10
     gen = rs.generator(GF, d)
     orig = [
