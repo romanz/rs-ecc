@@ -21,12 +21,13 @@ def encode(msg, gen):
 def decode(msg, gen):
     assert len(msg) < gen.field.q  # must be <= (p^n-1)
     synd = syndrome(msg, gen)
-    locator, evaluator = solve(gen.field, synd)
-    indices = search(locator, range(len(msg)))
-    if indices is None:
-        raise ValueError('Cannot find errors')
-    for j, delta in correct(indices, locator, evaluator):
-        msg[j] = gen.field.add(msg[j], delta)
+    if any(synd):
+        locator, evaluator = solve(gen.field, synd)
+        indices = search(locator, range(len(msg)))
+        if indices is None:
+            raise ValueError('Cannot find errors')
+        for j, delta in correct(indices, locator, evaluator):
+            msg[j] = gen.field.add(msg[j], delta)
 
     prefix_len = gen.degree
     return msg[prefix_len:]
