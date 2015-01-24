@@ -18,6 +18,20 @@ def encode(msg, gen):
     return r.coeffs + msg
 
 
+def decode(msg, gen):
+    assert len(msg) < gen.field.q  # must be <= (p^n-1)
+    synd = syndrome(msg, gen)
+    locator, evaluator = solve(gen.field, synd)
+    indices = search(locator, range(len(msg)))
+    if indices is None:
+        raise ValueError('Cannot find errors')
+    for j, delta in correct(indices, locator, evaluator):
+        msg[j] = gen.field.add(msg[j], delta)
+
+    prefix_len = gen.degree
+    return msg[prefix_len:]
+
+
 def syndrome(msg, gen):
     field = gen.field
     degree = gen.degree
@@ -68,15 +82,3 @@ def correct(indices, locator, evaluator):
         num = field.mul(evaluator.eval(inv_alpha), alpha)
         den = locator_deriv.eval(inv_alpha)
         yield j, field.div(num, den)
-
-
-def decode(msg, gen):
-    assert len(msg) < gen.field.q  # must be <= (p^n-1)
-    synd = syndrome(msg, gen)
-    locator, evaluator = solve(gen.field, synd)
-    indices = search(locator, range(len(msg)))
-    if indices is None:
-        raise ValueError('Cannot find errors')
-    for j, delta in correct(indices, locator, evaluator):
-        msg[j] = gen.field.add(msg[j], delta)
-    return msg

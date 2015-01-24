@@ -23,7 +23,8 @@ def test_encode():
 
 
 def test_syndrome():
-    gen = rs.generator(GF, 10)
+    d = 10
+    gen = rs.generator(GF, d)
     orig = [
         224, 75, 253, 239, 175, 107, 19, 144, 42, 188,
         236, 112, 150, 198, 198, 150, 38, 39, 6, 50, 23, 118, 71, 117, 210, 64,
@@ -40,7 +41,7 @@ def test_syndrome():
     msg = orig[:]
     for i in indices:
         msg[i] = i
-    assert rs.decode(msg, gen) == orig
+    assert rs.decode(msg, gen) == orig[d:]
 
     indices = [0, 1, 2, 23, 24, 25]
     msg = orig[:]
