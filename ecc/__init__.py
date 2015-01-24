@@ -8,14 +8,14 @@ class Codec(object):
         if field is None:
             field = galois.Field(reversed([1, 0, 0, 0, 1, 1, 1, 0, 1]), p=2)
 
-        self.max_msg_len = field.q - 1
+        self.max_msg_len = field.q - 1 - distance
         self.distance = distance
         self.generator = reed_solomon.generator(field=field, n=distance)
 
     def encode(self, msg):
-        encoded = reed_solomon.encode(msg=bytearray(msg), gen=self.generator)
+        encoded = reed_solomon.encode(msg=list(msg), gen=self.generator)
         return bytearray(encoded)
 
     def decode(self, msg):
-        decoded = reed_solomon.decode(msg=bytearray(msg), gen=self.generator)
+        decoded = reed_solomon.decode(msg=list(msg), gen=self.generator)
         return bytearray(decoded)
