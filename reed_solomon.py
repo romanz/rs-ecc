@@ -54,8 +54,8 @@ def search(p, indices):
     # q[x] == 0 iff p[1/x] == 0
     q = galois.Polynomial(field, reversed(p.coeffs))
     indices = [i for i in indices if q.eval(field.exp[i]) == 0]
-    assert len(indices) == p.degree
-    return indices
+    if len(indices) == p.degree:
+        return indices
 
 
 def correct(indices, locator, evaluator):
@@ -75,6 +75,8 @@ def decode(msg, gen):
     synd = syndrome(msg, gen)
     locator, evaluator = solve(gen.field, synd)
     indices = search(locator, range(len(msg)))
+    if indices is None:
+        raise ValueError('Cannot find errors')
     for j, delta in correct(indices, locator, evaluator):
         msg[j] = gen.field.add(msg[j], delta)
     return msg

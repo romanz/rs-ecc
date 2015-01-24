@@ -1,5 +1,6 @@
 import galois as g
 import reed_solomon as rs
+import pytest
 
 GF = g.Field(reversed([1, 0, 0, 0, 1, 1, 1, 0, 1]), p=2)
 gen = rs.generator(GF, 4)
@@ -40,3 +41,14 @@ def test_syndrome():
     for i in indices:
         msg[i] = i
     assert rs.decode(msg, gen) == orig
+
+    indices = [0, 1, 2, 23, 24, 25]
+    msg = orig[:]
+    for i in indices:
+        msg[i] = i
+
+    with pytest.raises(ValueError):
+        rs.decode(msg, gen)
+
+    with pytest.raises(ValueError):
+        rs.decode(range(len(msg)), gen)
