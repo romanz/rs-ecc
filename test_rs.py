@@ -12,12 +12,31 @@ def test_gen():
 def test_encode():
     data = [0x56, 0x34, 0x12]
     r = rs.encode(data, gen)
-    assert r == data + [0xd9, 0x78, 0xe6, 0x37]
+    assert r == [0xd9, 0x78, 0xe6, 0x37] + data
 
-    msg = [0x40, 0xd2, 0x75, 0x47, 0x76, 0x17, 0x32, 0x06,
-           0x27, 0x26, 0x96, 0xc6, 0xc6, 0x96, 0x70, 0xec][::-1]
-
+    msg = [
+        236, 112, 150, 198, 198, 150, 38, 39, 6, 50, 23, 118, 71, 117, 210, 64
+    ]
     f = rs.encode(msg, rs.generator(GF, 10))
-    assert f == msg + [
-        0xbc, 0x2a, 0x90, 0x13, 0x6b, 0xaf, 0xef, 0xfd, 0x4b, 0xe0
-    ][::-1]
+    assert f == [224, 75, 253, 239, 175, 107, 19, 144, 42, 188] + msg
+
+
+def test_syndrome():
+    gen = rs.generator(GF, 10)
+    orig = [
+        224, 75, 253, 239, 175, 107, 19, 144, 42, 188,
+        236, 112, 150, 198, 198, 150, 38, 39, 6, 50, 23, 118, 71, 117, 210, 64,
+    ]
+    msg = orig[:]
+    assert rs.syndrome(msg, gen) == [0] * gen.degree
+
+    index = len(msg) - 1
+    msg[index] = 0
+    synd = rs.syndrome(msg, gen)
+    assert synd == [64, 192, 93, 231, 52, 92, 228, 49, 83, 245]
+
+    indices = [2, 8, 15, 7, 0]
+    msg = orig[:]
+    for i in indices:
+        msg[i] = i
+    assert rs.decode(msg, gen) == orig

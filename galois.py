@@ -57,10 +57,16 @@ class Field(object):
         pairs = zip(self.to_poly[x], self.to_poly[y])
         return self.from_poly[tuple((x - y) % self.p for x, y in pairs)]
 
+    def times(self, x, n):
+        return self.from_poly[tuple((c * n) % self.p for c in self.to_poly[x])]
+
     def mul(self, x, y):
         if x == 0 or y == 0:
             return 0
         return self.exp[self.log[x] + self.log[y]]
+
+    def div(self, x, y):
+        return self.mul(x, self.inv(y))
 
     def inv(self, x):
         if x == 0:
@@ -77,8 +83,11 @@ class Polynomial(object):
         self.field = field
         self.coeffs = _trim([0] * power + list(coeffs))
 
+    def __nonzero__(self):
+        return self.coeffs != [0]
+
     @property
-    def order(self):
+    def degree(self):
         return len(self.coeffs) - 1
 
     def copy(self):
@@ -109,6 +118,10 @@ class Polynomial(object):
             result = self.field.add(result, c)
         return result
 
+    def deriv(self):
+        coeffs = [self.field.times(c, i) for i, c in enumerate(self.coeffs)]
+        return Polynomial(self.field, coeffs[1:])
+
     def __mul__(self, other):
         result = [0] * (len(self.coeffs) + len(other.coeffs))
         for i, f_i in enumerate(self.coeffs):
@@ -117,6 +130,10 @@ class Polynomial(object):
                 delta = self.field.mul(f_i, g_j)
                 result[k] = self.field.add(result[k], delta)
         return Polynomial(self.field, result)
+
+    def normalize(self):
+        factor = self.field.inv(self.coeffs[-1])
+        return self * Polynomial(self.field, [factor])
 
 
 def _pad(f, g):
@@ -131,23 +148,55 @@ def _trim(f):
     for i in range(len(f), 0, -1):
         if f[i-1]:
             break
-    return f[:i]
+    f = f[:i]
+    if not f:
+        f = [0]
+    return f
 
 
 def divide(f, g):
     assert f.field == g.field
+    assert f.degree >= g.degree
+    assert g
+
     field = f.field
     r = f.copy()
+    factor = field.inv(g.coeffs[-1])
 
     q = Polynomial(field, [0])
     m = len(f.coeffs)
     n = len(g.coeffs) - 1
 
     for i in range(m-1, n-1, -1):
-        c = r.coeffs[i]
-        h = Polynomial(field, [c], power=i-n)
-        q = q + h
-        r = r - h * g
-        assert len(r.coeffs) == i
+        if i < len(r.coeffs):
+            c = field.mul(r.coeffs[i], factor)
+            h = Polynomial(field, [c], power=i-n)
+            q = q + h
+            r = r - h * g
 
+    assert r + q * g == f
     return q, r
+
+
+def euclid(a, b):
+    assert a.field == b.field
+    assert a.degree > b.degree
+    P = lambda *coeffs: Polynomial(a.field, coeffs)
+    r = [a, b]
+    s = [P(1), P(0)]
+    t = [P(0), P(1)]
+    q = []
+    while True:
+        assert s[-1] * a + t[-1] * b == r[-1]
+        yield r[-1], (s[-1], t[-1])
+        q_, r_ = divide(r[-2], r[-1])
+        if not r_:
+            break
+        q.append(q_)
+        r.append(r_)
+        s.append(s[-2] - q_ * s[-1])
+        t.append(t[-2] - q_ * t[-1])
+
+
+def gcd(a, b):
+    return list(euclid(a, b))[-1][0]
