@@ -9,3 +9,4 @@ build/
 htmlcov
 /.tox
 /dist
+.sconsign.dblite

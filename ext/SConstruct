@@ -1,0 +1,1 @@
+SharedLibrary('rs', ['reed_solomon.c'], CCFLAGS='-Wall')
