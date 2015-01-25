@@ -1,21 +1,22 @@
-import galois
+from .polynomial import Polynomial
+from .algorithms import modulo, euclid, gcd
 
 
 def generator(field, n):
     ''' g[x] = (x - g^0)(x - g^1)...(x - g^(n-1)) '''
-    g = galois.Polynomial(field, [1])
+    g = Polynomial(field, [1])
     for i in range(n):
         c = field.sub(0, field.exp[i])  # -g^i
-        g = g * galois.Polynomial(field, [c, 1])
+        g = g * Polynomial(field, [c, 1])
     assert g.degree == n
     return g
 
 
 def encode(msg, gen):
-    padded = galois.Polynomial(gen.field, list(msg), power=gen.degree)
-    q, r = galois.divide(padded, gen)
-    assert q * gen + r == padded
-    return r.coeffs + msg
+    padded = Polynomial(gen.field, list(msg), power=gen.degree)
+    r = modulo(padded, gen)
+    padding = [0] * (gen.degree - len(r.coeffs))
+    return r.coeffs + padding + msg
 
 
 def decode(msg, gen):
@@ -36,38 +37,41 @@ def decode(msg, gen):
 def syndrome(msg, gen):
     field = gen.field
     degree = gen.degree
-    p = galois.Polynomial(field, msg)
+    p = Polynomial(field, msg)
     return [p.eval(field.exp[i]) for i in range(degree)]
 
 
-def solve(field, synd):
-    S = galois.Polynomial(field, list(synd))
-    a = galois.Polynomial(field, [1], power=S.degree+1)
-    b = S
-
+def _euclid_solver(a, b):
     k = a.degree // 2
-    for r, (s, t) in galois.euclid(a, b):
+    for r, (_, t) in euclid(a, b):
         if t.degree <= k and r.degree < k:
-            break
-    else:
-        raise AssertionError()
+            return r, t
+
+    raise AssertionError('Cannot solve key equation')
+
+
+def solve(field, synd):
+    S = Polynomial(field, list(synd))
+    x_to_the_N = Polynomial(field, [1], power=len(synd))
+
+    r, t = _euclid_solver(a=x_to_the_N, b=S)
 
     c = field.inv(t.coeffs[0])
-    c = galois.Polynomial(field, [c])
+    c = Polynomial(field, [c])
     locator = c * t
     evaluator = c * r
 
     assert locator.eval(0) == 1
-    assert galois.gcd(locator, evaluator).normalize().coeffs == [1]
+    assert gcd(locator, evaluator).normalize().coeffs == [1]
     # Locator[x] Syndrome[x] = Evaluator[x] {mod x^(d-1)}
-    assert galois.divide(locator * S, a)[1] == evaluator
+    assert modulo(locator * S, x_to_the_N) == evaluator
     return locator, evaluator
 
 
 def search(p, indices):
     field = p.field
     # q[x] == 0 iff p[1/x] == 0
-    q = galois.Polynomial(field, reversed(p.coeffs))
+    q = Polynomial(field, reversed(p.coeffs))
     indices = [i for i in indices if q.eval(field.exp[i]) == 0]
     if len(indices) == p.degree:
         return indices

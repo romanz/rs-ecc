@@ -1,4 +1,5 @@
 from ecc import galois as g
+from ecc import polynomial as p
 from ecc import reed_solomon as rs
 import pytest
 
@@ -7,7 +8,7 @@ gen = rs.generator(GF, 4)
 
 
 def test_gen():
-    assert gen == g.Polynomial(GF, [0x40, 0x78, 0x36, 0x0f, 1])
+    assert gen == p.Polynomial(GF, [0x40, 0x78, 0x36, 0x0f, 1])
 
 
 def test_encode():
