@@ -21,6 +21,10 @@ struct polynomial_t {
 	const struct field_t *field;
 };
 
+uint max_size() {
+    return Q - 1;
+}
+
 symbol_t symb_mult(const struct field_t *field, symbol_t x, symbol_t y) {
 	if (x == 0 || y == 0) {
 		return 0;
@@ -36,36 +40,78 @@ symbol_t symb_inv(const struct field_t *field, symbol_t x) {
 }
 
 struct polynomial_t poly_mult(struct polynomial_t f, struct polynomial_t g) {
-	assert(f.field);
-	assert(f.field == g.field);
-	const struct field_t *field = f.field;
+    assert(f.field);
+    assert(f.field == g.field);
+    const struct field_t *field = f.field;
 
-	struct polynomial_t result = {f.length + g.length - 1, {0}, field};
+    struct polynomial_t result = {f.length + g.length - 1, {0}, field};
 
-	for (int i = 0; i < f.length; ++i) {
-		for (int j = 0; j < g.length; ++j) {
-			int k = i + j;
-			result.coeffs[k] ^= symb_mult(field, f.coeffs[i], g.coeffs[j]);
-		}
-	}
-	return result;
+    for (int i = 0; i < f.length; ++i) {
+        for (int j = 0; j < g.length; ++j) {
+            int k = i + j;
+            result.coeffs[k] ^= symb_mult(field, f.coeffs[i], g.coeffs[j]);
+        }
+    }
+    return result;
 }
 
-void poly_divmod(struct polynomial_t f, struct polynomial_t g, struct polynomial_t *r_, struct polynomial_t *q_) {
+struct polynomial_t poly_scale(struct polynomial_t f, symbol_t c) {
+    assert(f.field);
+    const struct field_t *field = f.field;
+
+    for (int i = 0; i < f.length; ++i) {
+        f.coeffs[i] = symb_mult(field, f.coeffs[i], c);
+    }
+    return f;
+}
+
+void poly_divmod(struct polynomial_t f, struct polynomial_t g,
+                 struct polynomial_t *r_, struct polynomial_t *q_) {
 	assert(r_);
 	assert(q_);
+    assert(f.field);
+    assert(f.field == g.field);
+
+    const struct field_t *field = f.field;
+
+    symbol_t factor = symb_inv(field, g.coeffs[g.length - 1]);
+    g = poly_scale(g, factor);
+
+    struct polynomial_t q = {0, {0}, field};
+    struct polynomial_t r = f;
+
+    for (int i = f.length - 1; i >= g.length - 1; --i) {
+        int offset = i - g.length + 1;
+        assert(offset >= 0);
+
+        symbol_t c = r.coeffs[i];
+        struct polynomial_t g_c = poly_scale(g, c);
+        for (int j = 0; j < g.length; ++j) {
+            r.coeffs[offset + j] ^= g_c.coeffs[j];
+        }
+        assert(r.coeffs[i] == 0);
+        r.length -= 1;
+        q.coeffs[offset] = c;
+        q.length += 1;
+    }
+    *r_ = r;
+    *q_ = q;
 }
 
 struct field_t *field_alloc() {
-	return malloc(sizeof(struct field_t));
+	return calloc(1, sizeof(struct field_t));
 }
 
 void field_free(struct field_t *f) {
 	free(f);
 }
 
-struct field_t *polynomial_alloc() {
-	return malloc(sizeof(struct polynomial_t));
+struct polynomial_t *polynomial_alloc(const struct field_t *f) {
+	struct polynomial_t *p = calloc(1, sizeof(struct polynomial_t));
+    if (p) {
+        p->field = f;
+    }
+    return p;
 }
 
 void polynomial_free(struct polynomial_t *p) {
@@ -86,9 +132,9 @@ void polynomial_print(const struct polynomial_t *p, const char *fmt) {
 int rs_init_field(struct field_t *field, symbol_t primitive_poly) {
 	assert(field);
 	symbol_t alpha = 1;
+
 	for (int i = 0; i < Q-1; ++i) {
 		field->exp[i] = alpha;
-		// printf("%5d: %5d\n", i, alpha);
 
 		assert(field->log[alpha] == 0);
 		field->log[alpha] = i;
@@ -110,7 +156,8 @@ int rs_init_field(struct field_t *field, symbol_t primitive_poly) {
 	return 0;
 }
 
-int rs_generator(const struct field_t *field, uint distance, struct polynomial_t *gen) {
+int rs_generator(const struct field_t *field, uint distance,
+                 struct polynomial_t *gen) {
 	assert(field);
 	assert(gen);
 
