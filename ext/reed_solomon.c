@@ -65,6 +65,20 @@ struct polynomial_t poly_mult(struct polynomial_t f, struct polynomial_t g) {
     return result;
 }
 
+struct polynomial_t poly_add(struct polynomial_t f, struct polynomial_t g) {
+    assert(f.field);
+    assert(f.field == g.field);
+    const struct field_t *field = f.field;
+
+    uint length = (f.length > g.length) ? f.length : g.length;
+    struct polynomial_t result = {length, {0}, field};
+
+    for (int i = 0; i < length; ++i) {
+        result.coeffs[i] = f.coeffs[i] ^ g.coeffs[i];
+    }
+    return result;
+}
+
 struct polynomial_t poly_scale(struct polynomial_t f, symbol_t c) {
     assert(f.field);
     const struct field_t *field = f.field;
@@ -195,9 +209,20 @@ int rs_generator(const struct field_t *field, uint distance,
 	return 0;
 }
 
+int is_zero(const struct polynomial_t p) {
+    for (int i = 0; i < p.length; ++i) {
+        if (p.coeffs[i]) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 int rs_encode(const struct polynomial_t *gen, struct polynomial_t *msg) {
     assert(gen);
+    assert(gen->field);
     assert(msg);
+    msg->field = gen->field;
 
 	uint offset = gen->length - 1;
     assert(msg->length + offset < Q);
@@ -218,6 +243,73 @@ int rs_encode(const struct polynomial_t *gen, struct polynomial_t *msg) {
     return 0;
 }
 
+int key_equation_solver(const struct polynomial_t synd,
+                        struct polynomial_t *locator_ptr,
+                        struct polynomial_t *evaluator_ptr) {
+
+    uint n = synd.length;
+    struct polynomial_t a = {n + 1, {0}, synd.field};
+    a.coeffs[n] = 1;
+    struct polynomial_t b = synd;
+    assert(a.length > b.length);
+
+    struct polynomial_t one = {1, {1}, synd.field};
+    struct polynomial_t zero = {1, {0}, synd.field};
+
+    struct polynomial_t r[2] = {a, b};
+    struct polynomial_t s[2] = {one, zero};
+    struct polynomial_t t[2] = {zero, one};
+    struct polynomial_t q_ = zero;
+    struct polynomial_t r_ = zero;
+
+    uint k = n / 2;
+    while (1) {
+        if ((t[1].length - 1 <= k) && (r[1].length - 1 < k)) {
+            struct polynomial_t locator = t[1];
+            struct polynomial_t evaluator = r[1];
+
+            symbol_t c = symb_inv(synd.field, locator.coeffs[0]);
+            *locator_ptr = poly_scale(locator, c);
+            *evaluator_ptr = poly_scale(evaluator, c);
+        }
+
+        poly_divmod(r[0], r[1], &q_, &r_);
+        if (is_zero(r_)) {
+            break;
+        }
+        r[0] = r[1];
+        r[1] = r_;
+
+        struct polynomial_t s_ = poly_add(s[0], poly_mult(q_, s[1]));
+        struct polynomial_t t_ = poly_add(t[0], poly_mult(q_, t[1]));
+
+        s[0] = s[1];
+        s[1] = s_;
+
+        t[0] = t[1];
+        t[1] = t_;
+    }
+
+    return 1;
+}
+
 int rs_decode(const struct polynomial_t *gen, struct polynomial_t *msg) {
-	return 0;
+    assert(gen);
+    assert(gen->field);
+    assert(msg);
+    msg->field = gen->field;
+
+    struct polynomial_t synd = syndrome(*msg, gen->length - 1);
+    if (is_zero(synd)) {
+	    return 0;
+    }
+
+    struct polynomial_t locator = {0};
+    struct polynomial_t evaluator = {0};
+    int error = 0;
+
+    error = key_equation_solver(synd, &locator, &evaluator);
+    assert(error == 0);
+
+    return 1;
 }

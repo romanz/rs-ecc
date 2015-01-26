@@ -45,4 +45,12 @@ def test():
     msg = [236, 112, 150, 198, 198, 150, 38, 39, 6, 50, 23, 118, 71, 117, 210, 64]
     p.contents.coeffs = msg
     lib.rs_encode(gen, p)
-    assert p.contents.coeffs == [224, 75, 253, 239, 175, 107, 19, 144, 42, 188] + msg
+    msg_enc = [224, 75, 253, 239, 175, 107, 19, 144, 42, 188] + msg
+    assert p.contents.coeffs == msg_enc
+    assert lib.rs_decode(gen, p) == 0  # no errors
+
+    msg_err = msg_enc[:]
+    msg_err[-1] = 0
+    p.contents.coeffs = msg_err
+
+    assert lib.rs_decode(gen, p) == 0
