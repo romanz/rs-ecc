@@ -21,8 +21,8 @@ struct polynomial_t {
 	const struct field_t *field;
 };
 
-uint max_size() {
-    return Q - 1;
+uint field_size() {
+    return Q;
 }
 
 symbol_t symb_mult(const struct field_t *field, symbol_t x, symbol_t y) {
@@ -66,9 +66,7 @@ struct polynomial_t poly_scale(struct polynomial_t f, symbol_t c) {
 }
 
 void poly_divmod(struct polynomial_t f, struct polynomial_t g,
-                 struct polynomial_t *r_, struct polynomial_t *q_) {
-	assert(r_);
-	assert(q_);
+                 struct polynomial_t *q_ptr, struct polynomial_t *r_ptr) {
     assert(f.field);
     assert(f.field == g.field);
 
@@ -94,8 +92,12 @@ void poly_divmod(struct polynomial_t f, struct polynomial_t g,
         q.coeffs[offset] = c;
         q.length += 1;
     }
-    *r_ = r;
-    *q_ = q;
+    if (r_ptr) {
+        *r_ptr = r;
+    }
+    if (q_ptr) {
+        *q_ptr = q;
+    }
 }
 
 struct field_t *field_alloc() {
@@ -118,13 +120,12 @@ void polynomial_free(struct polynomial_t *p) {
 	free(p);
 }
 
-void polynomial_print(const struct polynomial_t *p, const char *fmt) {
-	assert(p);
+void poly_print(const struct polynomial_t p, const char *fmt) {
 	printf("[");
-	printf(fmt, p->coeffs[0]);
-	for (int i = 1; i < p->length; ++i) {
+	printf(fmt, p.coeffs[0]);
+	for (int i = 1; i < p.length; ++i) {
 		printf(", ");
-		printf(fmt, p->coeffs[i]);
+		printf(fmt, p.coeffs[i]);
 	}
 	printf("]");
 }
@@ -174,7 +175,26 @@ int rs_generator(const struct field_t *field, uint distance,
 }
 
 int rs_encode(const struct polynomial_t *gen, struct polynomial_t *msg) {
-	return 0;
+    assert(gen);
+    assert(msg);
+
+	uint offset = gen->length - 1;
+    assert(msg->length + offset < Q);
+
+    for (int i = msg->length - 1; i >= 0; --i) {
+        msg->coeffs[i + offset] = msg->coeffs[i];
+        msg->coeffs[i] = 0;
+    }
+    msg->length += offset;
+
+    struct polynomial_t res = {0};
+    poly_divmod(*msg, *gen, NULL, &res);
+    for (int i = 0; i < msg->length; ++i) {
+        res.coeffs[i + offset] = msg->coeffs[i + offset];
+    }
+    res.length = msg->length;
+    *msg = res;
+    return 0;
 }
 
 int rs_decode(const struct polynomial_t *gen, struct polynomial_t *msg) {
