@@ -25,6 +25,16 @@ uint field_size() {
     return Q;
 }
 
+void poly_print(const struct polynomial_t p, const char *fmt) {
+    printf("[");
+    printf(fmt, p.coeffs[0]);
+    for (int i = 1; i < p.length; ++i) {
+        printf(", ");
+        printf(fmt, p.coeffs[i]);
+    }
+    printf("]");
+}
+
 symbol_t symb_mult(const struct field_t *field, symbol_t x, symbol_t y) {
 	if (x == 0 || y == 0) {
 		return 0;
@@ -100,6 +110,24 @@ void poly_divmod(struct polynomial_t f, struct polynomial_t g,
     }
 }
 
+symbol_t poly_eval(struct polynomial_t f, symbol_t x) {
+    symbol_t res = 0;
+    symbol_t z = 1;
+    for (int i = 0; i < f.length; ++i) {
+        res ^= symb_mult(f.field, f.coeffs[i], z);
+        z = symb_mult(f.field, z, x);
+    }
+    return res;
+}
+
+struct polynomial_t syndrome(struct polynomial_t f, uint size) {
+    struct polynomial_t res = {size, {0}, f.field};
+    for (int i = 0; i < size; ++i) {
+        res.coeffs[i] = poly_eval(f, f.field->exp[i]);
+    }
+    return res;
+}
+
 struct field_t *field_alloc() {
 	return calloc(1, sizeof(struct field_t));
 }
@@ -120,17 +148,10 @@ void polynomial_free(struct polynomial_t *p) {
 	free(p);
 }
 
-void poly_print(const struct polynomial_t p, const char *fmt) {
-	printf("[");
-	printf(fmt, p.coeffs[0]);
-	for (int i = 1; i < p.length; ++i) {
-		printf(", ");
-		printf(fmt, p.coeffs[i]);
-	}
-	printf("]");
-}
+///////////////////////////////////////////////////////////////////////////////
 
-int rs_init_field(struct field_t *field, symbol_t primitive_poly) {
+
+int rs_field(struct field_t *field, symbol_t primitive_poly) {
 	assert(field);
 	symbol_t alpha = 1;
 
