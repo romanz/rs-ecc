@@ -162,6 +162,16 @@ void polynomial_free(struct polynomial_t *p) {
 	free(p);
 }
 
+void poly_trim(struct polynomial_t *p) {
+    assert(p);
+    while (p->length > 1) {
+        if (p->coeffs[p->length - 1] != 0) {
+            break;
+        }
+        p->length -= 1;
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 
@@ -271,9 +281,13 @@ int key_equation_solver(const struct polynomial_t synd,
             symbol_t c = symb_inv(synd.field, locator.coeffs[0]);
             *locator_ptr = poly_scale(locator, c);
             *evaluator_ptr = poly_scale(evaluator, c);
+            return 0;
         }
 
         poly_divmod(r[0], r[1], &q_, &r_);
+        poly_trim(&q_);
+        poly_trim(&r_);
+
         if (is_zero(r_)) {
             break;
         }
@@ -306,9 +320,8 @@ int rs_decode(const struct polynomial_t *gen, struct polynomial_t *msg) {
 
     struct polynomial_t locator = {0};
     struct polynomial_t evaluator = {0};
-    int error = 0;
 
-    error = key_equation_solver(synd, &locator, &evaluator);
+    int error = key_equation_solver(synd, &locator, &evaluator);
     assert(error == 0);
 
     return 1;
