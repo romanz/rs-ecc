@@ -1,56 +1,105 @@
+from ecc import codec
+
+def test_py():
+    c = codec.Codec(10)
+    x = [0] * 210
+    errors = {137: 211L, 155: 255L}
+    for k, v in errors.items():
+        x[k] = v
+    assert c.decode(x) == bytearray([0] * 200)
+
+
 import ctypes
-lib = ctypes.cdll.LoadLibrary('./librs.so')
 
-class polynomial_t(ctypes.Structure):
-    _fields_ = [
-        ('_length', ctypes.c_uint),
-        ('_coeffs', ctypes.c_uint * lib.field_size()),
-    ]
+class Codec(object):
 
-    def __repr__(self):
-        return repr(self.coeffs)
+    def __init__(self, distance, libname='./librs.so'):
+        self.lib = ctypes.cdll.LoadLibrary(libname)
+        self.field = self.lib.field_alloc()
+        if not self.field:
+            raise MemoryError()
 
-    @property
-    def coeffs(self):
-        return [int(c) for c in self._coeffs[:self._length]]
+        assert self.lib.rs_field(self.field, 0b100011101) == 0
 
-    @coeffs.setter
-    def coeffs(self, values):
-        self._length = len(values)
-        self._coeffs[:self._length] = [int(c) for c in values]
+        self.max_msg_len = self.lib.field_size() - 1 - distance
+        self.max_encoded = self.lib.field_size() - 1
+        self.distance = distance
 
+        class polynomial_t(ctypes.Structure):
+            _fields_ = [
+                ('_length', ctypes.c_uint),
+                ('_coeffs', ctypes.c_uint * self.lib.field_size()),
+            ]
 
-lib.polynomial_alloc.restype = ctypes.POINTER(polynomial_t)
+            def __repr__(self):
+                return repr(self.coeffs)
 
-F = lib.field_alloc()
-assert F
-lib.rs_field(F, 0b100011101)
+            @property
+            def coeffs(self):
+                return [int(c) for c in self._coeffs[:self._length]]
 
-def test():
-    gen = lib.polynomial_alloc(F)
-    assert gen
+            @coeffs.setter
+            def coeffs(self, values):
+                self._length = len(values)
+                self._coeffs[:self._length] = [int(c) for c in values]
 
-    lib.rs_generator(F, 4, gen)
-    assert gen.contents.coeffs == [0x40, 0x78, 0x36, 0x0f, 1]
+        self.lib.polynomial_alloc.restype = ctypes.POINTER(polynomial_t)
+        self.generator = self.lib.polynomial_alloc()
+        if not self.generator:
+            raise MemoryError()
 
-    msg = [0x56, 0x34, 0x12]
-    p = lib.polynomial_alloc(F)
-    p.contents.coeffs = msg
+        assert self.lib.rs_generator(self.field, distance, self.generator) == 0
 
-    lib.rs_encode(gen, p)
-    assert p.contents.coeffs == [0xd9, 0x78, 0xe6, 0x37] + msg
+    def __del__(self):
+        self.lib.polynomial_free(self.generator)
+        self.generator = None
+        self.lib.field_free(self.field)
+        self.field = None
+        self.lib = None
 
-    d = 10
-    lib.rs_generator(F, d, gen)
-    msg = [236, 112, 150, 198, 198, 150, 38, 39, 6, 50, 23, 118, 71, 117, 210, 64]
-    p.contents.coeffs = msg
-    lib.rs_encode(gen, p)
-    msg_enc = [224, 75, 253, 239, 175, 107, 19, 144, 42, 188] + msg
-    assert p.contents.coeffs == msg_enc
-    assert lib.rs_decode(gen, p) == 0  # no errors
+    def encode(self, msg):
+        if len(msg) > self.max_msg_len:
+            raise ValueError('too long message to encode')
 
-    msg_err = msg_enc[:]
-    msg_err[-1] = 0
-    p.contents.coeffs = msg_err
+        p = self.lib.polynomial_alloc(self.field)
+        if not p:
+            raise MemoryError()
 
-    assert lib.rs_decode(gen, p) == 0
+        p.contents.coeffs = msg
+        assert self.lib.rs_encode(self.generator, p) == 0
+        encoded = bytearray(p.contents.coeffs)
+        self.lib.polynomial_free(p)
+        return encoded
+
+    def decode(self, msg):
+        if len(msg) > self.max_encoded:
+            raise ValueError('too long message to decode')
+
+        p = self.lib.polynomial_alloc(self.field)
+        if not p:
+            raise MemoryError()
+
+        p.contents.coeffs = msg
+        errors = self.lib.rs_decode(self.generator, p)
+        if errors < 0:
+            raise ValueError('too many errors')
+        decoded = bytearray(p.contents.coeffs)
+        self.lib.polynomial_free(p)
+        return decoded
+
+import random
+
+def test_c():
+    c = Codec(64)
+    r = random.Random(0)
+    for i in range(1000):
+        x = bytearray([r.getrandbits(8) for _ in range(c.max_msg_len)])
+        y = c.encode(x)
+        errors = {}
+        for _ in range(c.distance // 2):
+            i = r.randrange(len(y))
+            errors[i] = r.getrandbits(8)
+        for k, v in errors.items():
+            y[k] = v
+        z = c.decode(y)
+        assert list(z) == list(x)

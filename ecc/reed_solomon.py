@@ -1,6 +1,8 @@
 from .polynomial import Polynomial
 from .algorithms import modulo, euclid, gcd
 
+import logging
+log = logging.getLogger(__name__)
 
 def generator(field, n):
     ''' g[x] = (x - g^0)(x - g^1)...(x - g^(n-1)) '''
@@ -23,8 +25,12 @@ def decode(msg, gen):
     assert len(msg) < gen.field.q  # must be <= (p^n-1)
     synd = syndrome(msg, gen)
     if any(synd):
+        # print 'syndrome =', synd
         locator, evaluator = solve(gen.field, synd)
+        # print 'locator =', locator
+        # print 'evaluator =', evaluator
         indices = search(locator, range(len(msg)))
+        # print 'indices =', indices
         if indices is None:
             raise ValueError('Cannot find errors')
         for j, delta in correct(indices, locator, evaluator):
@@ -70,9 +76,7 @@ def solve(field, synd):
 
 def search(p, indices):
     field = p.field
-    # q[x] == 0 iff p[1/x] == 0
-    q = Polynomial(field, reversed(p.coeffs))
-    indices = [i for i in indices if q.eval(field.exp[i]) == 0]
+    indices = [i for i in indices if p.eval(field.inv(field.exp[i])) == 0]
     if len(indices) == p.degree:
         return indices
 
