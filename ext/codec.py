@@ -20,6 +20,7 @@ class Codec(object):
             _fields_ = [
                 ('_length', ctypes.c_uint),
                 ('_coeffs', ctypes.c_uint * self.lib.field_size()),
+                ('_field', ctypes.c_void_p),
             ]
 
             def __repr__(self):

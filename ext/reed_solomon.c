@@ -182,9 +182,11 @@ int rs_field(struct field_t *field, symbol_t primitive_poly) {
 	symbol_t alpha = 1;
 
 	for (int i = 0; i < Q-1; ++i) {
+		assert(i < Q);
 		field->exp[i] = alpha;
 
 		assert(field->log[alpha] == 0);
+		assert(alpha < Q);
 		field->log[alpha] = i;
 
 		alpha = alpha << 1;
@@ -199,6 +201,7 @@ int rs_field(struct field_t *field, symbol_t primitive_poly) {
 		uint e = Q - 1 - field->log[x];
 		symbol_t y = field->exp[e];
 		assert(symb_mult(field, x, y) == 1);
+		assert(x < Q);
 		field->inv[x] = y;
 	}
 	return 0;
