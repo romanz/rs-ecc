@@ -4,11 +4,13 @@ class Codec(object):
 
     def __init__(self, distance, libname):
         self.lib = ctypes.cdll.LoadLibrary(libname)
-        self.field = self.lib.field_alloc()
+        self.lib.field_alloc.restype = ctypes.c_void_p
+        self.field = ctypes.c_void_p(self.lib.field_alloc())
         if not self.field:
             raise MemoryError()
 
-        assert self.lib.rs_field(self.field, 0b100011101) == 0
+        g = sum(1 << i for i in [8, 4, 3, 2, 0])
+        assert self.lib.rs_field(self.field, g) == 0
 
         self.max_encoded = self.lib.field_size() - 1
         self.max_msg_len = self.max_encoded - distance
