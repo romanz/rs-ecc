@@ -1,1 +1,1 @@
-SharedLibrary('rs', ['reed_solomon.c'], CCFLAGS='-Wall -std=c99')
+SharedLibrary('rs', ['reed_solomon.c'], CCFLAGS='-g -Wall -std=c99')

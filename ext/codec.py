@@ -1,4 +1,7 @@
 import ctypes
+import logging
+
+log = logging.getLogger(__name__)
 
 class Codec(object):
 
@@ -37,10 +40,14 @@ class Codec(object):
 
         self.lib.polynomial_alloc.restype = ctypes.POINTER(polynomial_t)
         self.generator = self.lib.polynomial_alloc()
+        log.info('generator: %s', self.generator.contents)
         if not self.generator:
             raise MemoryError()
 
+        log.debug('field: %x', self.field.value)
+        log.debug('generator: %x', ctypes.addressof(self.generator.contents))
         assert self.lib.rs_generator(self.field, distance, self.generator) == 0
+        log.info('generator: %s', self.generator.contents)
 
     def __del__(self):
         self.lib.polynomial_free(self.generator)
@@ -59,7 +66,7 @@ class Codec(object):
 
         p.contents.coeffs = msg
         assert self.lib.rs_encode(self.generator, p) == 0
-        encoded = bytearray(p.contents.coeffs)
+        encoded = list(p.contents.coeffs)
         self.lib.polynomial_free(p)
         return encoded
 
@@ -75,6 +82,6 @@ class Codec(object):
         errors = self.lib.rs_decode(self.generator, p)
         if errors < 0:
             raise ValueError('too many errors')
-        decoded = bytearray(p.contents.coeffs)
+        decoded = list(p.contents.coeffs)
         self.lib.polynomial_free(p)
         return decoded

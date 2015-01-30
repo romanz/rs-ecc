@@ -3,9 +3,10 @@ from .polynomial import Polynomial
 
 def modulo(f, g):
     assert f.field == g.field
-    assert f.degree >= g.degree
     assert g
     field = f.field
+    if f.degree < g.degree:
+        return f
 
     g = g * Polynomial(field, [field.inv(g.coeffs[-1])])
     m = g.degree + 1
