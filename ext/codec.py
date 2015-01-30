@@ -38,8 +38,8 @@ class Codec(object):
                 self._length = len(values)
                 self._coeffs[:self._length] = [int(c) for c in values]
 
-        self.lib.polynomial_alloc.restype = ctypes.POINTER(polynomial_t)
-        self.generator = self.lib.polynomial_alloc()
+        self.lib.poly_alloc.restype = ctypes.POINTER(polynomial_t)
+        self.generator = self.lib.poly_alloc()
         log.info('generator: %s', self.generator.contents)
         if not self.generator:
             raise MemoryError()
@@ -50,7 +50,7 @@ class Codec(object):
         log.info('generator: %s', self.generator.contents)
 
     def __del__(self):
-        self.lib.polynomial_free(self.generator)
+        self.lib.poly_free(self.generator)
         self.generator = None
         self.lib.field_free(self.field)
         self.field = None
@@ -60,21 +60,21 @@ class Codec(object):
         if len(msg) > self.max_msg_len:
             raise ValueError('too long message to encode')
 
-        p = self.lib.polynomial_alloc(self.field)
+        p = self.lib.poly_alloc(self.field)
         if not p:
             raise MemoryError()
 
         p.contents.coeffs = msg
         assert self.lib.rs_encode(self.generator, p) == 0
         encoded = list(p.contents.coeffs)
-        self.lib.polynomial_free(p)
+        self.lib.poly_free(p)
         return encoded
 
     def decode(self, msg):
         if len(msg) > self.max_encoded:
             raise ValueError('too long message to decode')
 
-        p = self.lib.polynomial_alloc(self.field)
+        p = self.lib.poly_alloc(self.field)
         if not p:
             raise MemoryError()
 
@@ -83,5 +83,5 @@ class Codec(object):
         if errors < 0:
             raise ValueError('too many errors')
         decoded = list(p.contents.coeffs)
-        self.lib.polynomial_free(p)
+        self.lib.poly_free(p)
         return decoded
