@@ -55,7 +55,10 @@ def divmod_slow(f, g):
 def euclid(a, b):
     assert a.field == b.field
     assert a.degree > b.degree
-    P = lambda *coeffs: Polynomial(a.field, coeffs)
+
+    def P(*coeffs):
+        return Polynomial(a.field, coeffs)
+
     r = [a, b]
     s = [P(1), P(0)]
     t = [P(0), P(1)]

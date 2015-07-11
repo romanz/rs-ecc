@@ -4,6 +4,7 @@ from .algorithms import modulo, euclid, gcd
 import logging
 log = logging.getLogger(__name__)
 
+
 def generator(field, n):
     ''' g[x] = (x - g^0)(x - g^1)...(x - g^(n-1)) '''
     g = Polynomial(field, [1])

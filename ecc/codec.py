@@ -4,6 +4,7 @@ from . import reed_solomon
 import logging
 log = logging.getLogger(__name__)
 
+
 class Codec(object):
 
     def __init__(self, distance, field=None):
