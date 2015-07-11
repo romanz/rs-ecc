@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <stdio.h>
 
-#define N (8)
+#define N (16)
 #define Q (1L << (N))
 
 typedef unsigned int uint;

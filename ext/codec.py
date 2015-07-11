@@ -12,7 +12,7 @@ class Codec(object):
         if not self.field:
             raise MemoryError()
 
-        g = sum(1 << i for i in [8, 4, 3, 2, 0])
+        g = sum(1 << i for i in [16, 14, 12, 1, 0])  # x^16 + x^14 + x^12 + x + 1
         assert self.lib.rs_field(self.field, g) == 0
 
         self.max_encoded = self.lib.field_size() - 1
