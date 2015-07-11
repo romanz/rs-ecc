@@ -8,12 +8,12 @@ class Codec(object):
 
     def __init__(self, distance, field=None):
         if field is None:
-            indices = [8, 4, 3, 2, 0]
+            indices = [16, 14, 12, 1, 0]  # x^16 + x^14 + x^12 + x + 1
             coeffs = [0] * (max(indices) + 1)
             for i in indices:
                 coeffs[i] = 1
 
-            field = galois.Field(coeffs, p=2)
+            field = galois.Field(reversed(coeffs), p=2)
 
         self.max_encoded = field.q - 1
         self.max_msg_len = self.max_encoded - distance
